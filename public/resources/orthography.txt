@@ -1,0 +1,24 @@
+Ladino Ortography  Rules
+
+Ladino is a Spanish-based language with different ortographical and gramatical rules. To avoid doing spanish-isms, here are some guidelines you need to have in mind. 
+
+Orthographic Conventions
+
+Consonants
+
+1. 'qu' is written with 'k'
+2. 'c' is written with 'k' in following cases:
+   a. before the vowels 'a', 'o', 'u' - kaza (house), koza (thing), kupa (cup)
+   b. In combination with consonants - klasa (class), kerer (to want), aktuar (to act)
+3. At the end of a syllable, in foreign/technical words - rok (rock), tik (twitch)
+
+Punctuation
+
+1. Unlike Spanish, Ladino does not use inverted question marks (¿) or inverted exclamation marks (¡)
+2. Use only regular question marks (?) and exclamation marks (!) at the end of sentences
+
+Word-Specific Changes
+
+1. Write ‘muncho’,  ‘muncha’, ‘munchos’, or ‘munchas’ instead of ‘mucho’, ‘mucha’, ‘muchos’, ‘muchas’, respectively
+
+2. Use ‘tener’ instead of ‘aver’ as the auxiliary verb in the present perfect and past perfect. - Tengo visto (I have seen), Eya tenia visto (She had seen)
