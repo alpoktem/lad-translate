@@ -1,4 +1,7 @@
-<template>
+.voice.has-text-grey-lighter {
+  cursor: not-allowed;
+  opacity: 0.5;
+}<template>
   <div class="translation-widget">
     <!-- <h1 v-t="'welcome'"></h1> -->
     <div class="container">
@@ -37,12 +40,13 @@
                 </div>
 
                 <span
-                  v-if="sourceLang.code === 'lad' && source"
-                  @click="voice(source)"
+                  v-if="source"
+                  @click="voice(source, sourceLang.code)"
                   class="voice material-icons"
                   :class="{
-                    clickable: !playing,
-                    'has-text-grey-darker': !playing,
+                    clickable: !playing && sourceLang.code !== 'lad',
+                    'has-text-grey-darker': !playing && sourceLang.code !== 'lad',
+                    'has-text-grey-lighter': sourceLang.code === 'lad',
                     'has-text-grey-light': playing,
                   }"
                   >record_voice_over</span
@@ -99,12 +103,13 @@
                 ></textarea>
 
                 <span
-                  v-if="targetLang.code === 'lad' && target"
-                  @click="voice(target)"
+                  v-if="target"
+                  @click="voice(target, targetLang.code)"
                   class="voice material-icons"
                   :class="{
-                    clickable: !playing,
-                    'has-text-grey-darker': !playing,
+                    clickable: !playing && targetLang.code !== 'lad',
+                    'has-text-grey-darker': !playing && targetLang.code !== 'lad',
+                    'has-text-grey-lighter': targetLang.code === 'lad',
                     'has-text-grey-light': playing,
                   }"
                   >record_voice_over</span
@@ -231,7 +236,7 @@ export default {
   },
   mounted() {
     // Set max characters from environment variable
-    this.maxCharacters = parseInt(process.env.SRC_MAX_CHARACTERS || '500');
+    this.maxCharacters = parseInt(process.env.VUE_APP_MAX_CHARACTERS || '500');
     
     this.initializeLanguages();
     this.prepareModal();
@@ -338,15 +343,26 @@ export default {
       this.source = this.randomSentences[randomIndex];
     },
     
-    voice(text) {
+    voice(text, langCode) {
       if (this.playing) return;
       
+      // For Ladino - placeholder for future API implementation
+      if (langCode === 'lad') {
+        // TODO: Implement Ladino TTS API call here
+        return;
+      }
+      
+      // Browser TTS for other languages
       this.playing = true;
       try {
-        // Simple TTS implementation
         if ('speechSynthesis' in window) {
           const utterance = new SpeechSynthesisUtterance(text);
-          utterance.lang = this.sourceLang.code === 'lad' ? 'es-ES' : this.sourceLang.code;
+          const langMap = {
+            'en': 'en-US',
+            'es': 'es-ES',
+            'tr': 'tr-TR'
+          };
+          utterance.lang = langMap[langCode] || 'en-US';
           utterance.onend = () => {
             this.playing = false;
           };
@@ -356,12 +372,6 @@ export default {
           speechSynthesis.speak(utterance);
         } else {
           this.playing = false;
-          toast({
-            message: "Speech synthesis not supported in this browser",
-            type: "is-warning",
-            duration: 3000,
-            position: "top-center",
-          });
         }
       } catch (error) {
         this.playing = false;
