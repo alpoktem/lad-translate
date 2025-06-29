@@ -163,7 +163,7 @@ export default async function handler(req, res) {
 
     // Initialize Anthropic client
     const anthropic = new Anthropic({
-      apiKey: process.env.VUE_APP_CLAUDE_API_KEY || process.env.CLAUDE_API_KEY,
+      apiKey: process.env.CLAUDE_API_KEY,
     });
 
     // Load system resources
@@ -178,7 +178,7 @@ export default async function handler(req, res) {
 Provide only the translation.`;
 
     // Get model from environment or use default
-    const model = process.env.VUE_APP_CLAUDE_MODEL || process.env.CLAUDE_MODEL || "claude-3-5-sonnet-20241022";
+    const model = process.env.CLAUDE_MODEL || "claude-3-5-haiku-20241022";
 
     // Make API call to Claude with prompt caching
     // Using system message array format for better caching

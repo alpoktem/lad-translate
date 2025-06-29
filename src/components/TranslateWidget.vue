@@ -231,7 +231,7 @@ export default {
   },
   mounted() {
     // Set max characters from environment variable
-    this.maxCharacters = parseInt(process.env.VUE_APP_MAX_CHARACTERS || '500');
+    this.maxCharacters = parseInt(process.env.SRC_MAX_CHARACTERS || '500');
     
     this.initializeLanguages();
     this.prepareModal();
