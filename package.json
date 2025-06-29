@@ -10,6 +10,7 @@
     "i18n:report": "vue-cli-service i18n:report --src \"./src/**/*.?(js|vue)\" --locales \"./src/locales/**/*.json\""
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.0",
     "axios": "^0.26.1",
     "bulma": "^0.9.3",
     "bulma-toast": "^2.4.1",

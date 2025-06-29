@@ -1,4 +1,7 @@
-<template>
+.voice.has-text-grey-lighter {
+  cursor: not-allowed;
+  opacity: 0.5;
+}<template>
   <div class="translation-widget">
     <!-- <h1 v-t="'welcome'"></h1> -->
     <div class="container">
@@ -19,8 +22,7 @@
                     'is-warning': sourceLang.code !== lang.code,
                   }"
                   @click="setSouceLang(lang)"
-                  v-t="lang.code"
-                ></button>
+                >{{ lang.name }}</button>
               </div>
             </div>
             <div class="xbox mt-3">
@@ -29,25 +31,34 @@
                   v-model="source"
                   class="textarea"
                   :placeholder="$t('Type something to translate...')"
+                  :maxlength="maxCharacters"
                 ></textarea>
+                
+                <!-- Character counter -->
+                <div class="character-counter" :class="{ 'has-text-danger': source.length > maxCharacters * 0.9 }">
+                  {{ source.length }} / {{ maxCharacters }}
+                </div>
 
                 <span
-                  v-if="sourceLang.code === 'lad' && source"
-                  @click="voice(source)"
+                  v-if="source"
+                  @click="voice(source, sourceLang.code)"
                   class="voice material-icons"
                   :class="{
-                    clickable: !playing,
-                    'has-text-grey-darker': !playing,
+                    clickable: !playing && sourceLang.code !== 'lad',
+                    'has-text-grey-darker': !playing && sourceLang.code !== 'lad',
+                    'has-text-grey-lighter': sourceLang.code === 'lad',
                     'has-text-grey-light': playing,
                   }"
                   >record_voice_over</span
                 >
               </div>
+              <!-- Random button removed as requested
               <button
                 class="button is-primary mt-3"
                 @click="random"
                 v-t="'Random'"
               ></button>
+              -->
             </div>
           </div>
         </div>
@@ -79,8 +90,7 @@
                     'is-warning': targetLang.code !== lang.code,
                   }"
                   @click="setTargetLang(lang)"
-                  v-t="lang.code"
-                ></button>
+                >{{ lang.name }}</button>
               </div>
             </div>
             <div class="xbox mt-3">
@@ -93,69 +103,63 @@
                 ></textarea>
 
                 <span
-                  v-if="targetLang.code === 'lad' && target"
-                  @click="voice(target)"
+                  v-if="target"
+                  @click="voice(target, targetLang.code)"
                   class="voice material-icons"
                   :class="{
-                    clickable: !playing,
-                    'has-text-grey-darker': !playing,
+                    clickable: !playing && targetLang.code !== 'lad',
+                    'has-text-grey-darker': !playing && targetLang.code !== 'lad',
+                    'has-text-grey-lighter': targetLang.code === 'lad',
                     'has-text-grey-light': playing,
                   }"
                   >record_voice_over</span
                 >
               </div>
 
-              <div class="buttons is-flex">
-                <button
-                  class="button is-primary mt-3 mr-1"
-                  @click="contribute = !contribute"
-                  :disabled="!source"
-                  v-if="!contribute"
-                  v-t="'Contribute'"
-                ></button>
-
-                <button
-                  class="button is-primary mt-3 mr-1"
-                  @click="contribute = !contribute"
-                  :disabled="!source"
-                  v-if="contribute"
-                  v-t="'Cancel'"
-                ></button>
-
-                <span
-                  class="
-                    material-icons
-                    has-text-grey-darker
-                    clickable
-                    js-modal-trigger
-                  "
-                  data-target="modal-contribution"
-                  >help</span
+              <div class="tags">
+                <span class="tag" v-if="contribute"
+                  ><span
+                    class="material-icons is-size-7"
+                    style="color: rgb(209, 16, 16)"
+                    >info</span
+                  >{{ $t("Contribute") }}</span
                 >
-
-                <button
-                  class="button is-primary mt-3 push"
-                  @click="submit"
-                  v-if="contribute"
-                  :disabled="!contribute || !target"
-                  v-t="'Submit'"
-                ></button>
               </div>
             </div>
           </div>
         </div>
       </div>
-      <WidgetFooter></WidgetFooter>      
+      <WidgetFooter></WidgetFooter>
     </div>
-    <div id="modal-contribution" class="modal">
-      <div class="modal-background"></div>
 
-      <div class="modal-content">
-        <div class="box">
+    <!-- Contribution Modal -->
+    <div class="modal" :class="{ 'is-active': contribute }">
+      <div class="modal-background"></div>
+      <div class="modal-card">
+        <header class="modal-card-head">
+          <p class="modal-card-title" v-t="'Contribute'"></p>
+          <button class="delete" aria-label="close" @click="cancelContribute"></button>
+        </header>
+        <section class="modal-card-body">
           <img :src="require(`@/assets/contributionhelp-${$i18n.locale}.png`)" class="help-image" />
+        </section>
+        <footer class="modal-card-foot">
+          <button class="button is-success" @click="submitContribution" v-t="'Submit'"></button>
+          <button class="button" @click="cancelContribute" v-t="'Cancel'"></button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div class="modal" :class="{ 'is-active': helpModalActive }">
+      <div class="modal-background"></div>
+      <div class="modal-content">
+        <div class="modal-content">
+          <div class="box">
+            <img :src="require(`@/assets/contributionhelp-${$i18n.locale}.png`)" class="help-image" />
+          </div>
         </div>
       </div>
-
       <button class="modal-close is-large" aria-label="close"></button>
     </div>
   </div>
@@ -174,46 +178,76 @@ export default {
   },
   data() {
     return {
-      languages: [],
-      models: {},
+      // Static language configuration - no longer fetched from API
+      languages: [
+        { code: "lad", name: "Ladino" },
+        { code: "en", name: "English" },
+        { code: "es", name: "Spanish" },
+        { code: "tr", name: "Turkish" }
+      ],
+      models: {
+        // Static model configuration for language pair validation
+        lad: { en: true, es: true, tr: true },
+        en: { lad: true },
+        es: { lad: true },
+        tr: { lad: true }
+      },
       sourceLang: "",
       targetLang: "",
       source: "",
       target: "",
-      apiBase: process.env.VUE_APP_API,
-      token: process.env.VUE_APP_API_TOKEN,
       contribute: false,
       translating: false,
       playing: false,
+      helpModalActive: false,
+      // Character limit - will be set in mounted()
+      maxCharacters: 500,
+      // Random sentences for the Random button
+      randomSentences: [
+        "Buenos días, ¿cómo está usted?",
+        "Muchas gracias por su ayuda.",
+        "¿Puede usted ayudarme, por favor?",
+        "Me alegro de conocerle.",
+        "Que tenga un buen día."
+      ]
     };
   },
   computed: {
     postData() {
-      const source = this.source.split("\n");
       return {
-        src: this.sourceLang.code,
-        tgt: this.targetLang.code,
-        batch: source,
-        token: this.token,
+        source_text: this.source,
+        source_language: this.sourceLang.code,
+        target_language: this.targetLang.code
       };
     },
     validLanguages() {
       return this.languages.filter((l) => l.code !== "xx");
     },
+    // Compute the API endpoint based on environment
+    apiEndpoint() {
+      // In development, proxy through Vue dev server
+      if (process.env.NODE_ENV === 'development') {
+        return '/api/translate';
+      }
+      // In production on Vercel, use the full URL
+      // This handles both preview deployments and production
+      return '/api/translate';
+    }
   },
   mounted() {
-    this.getList();
+    // Set max characters from environment variable
+    this.maxCharacters = parseInt(process.env.VUE_APP_MAX_CHARACTERS || '500');
+    
+    this.initializeLanguages();
     this.prepareModal();
-    // toast({
-    //     message: this.$t("Thank you for your contribution"),
-    //     type: "is-primary",
-    //     duration: 300000,
-    //     position: "top-center",
-    //     closeOnClick: true,
-    //     opacity: 0.7
-    //   });
   },
   methods: {
+    initializeLanguages() {
+      // Initialize with default language pair (ensuring one is always Ladino)
+      this.sourceLang = this.languages.find((l) => l.code !== "lad");
+      this.targetLang = this.languages.find((l) => l.code === "lad");
+    },
+    
     isTargetLangEnabled(langCode) {
       if (this.sourceLang.code !== "lad" && langCode !== "lad") {
         return false;
@@ -222,6 +256,7 @@ export default {
         ? this.models[this.sourceLang.code][langCode] !== undefined
         : false;
     },
+    
     setSouceLang(lang) {
       this.sourceLang = lang;
       if (lang.code === "lad") {
@@ -231,6 +266,7 @@ export default {
         this.targetLang = this.languages.find((l) => l.code === "lad");
       }
     },
+    
     setTargetLang(lang) {
       this.targetLang = lang;
       if (lang.code === "lad" && this.sourceLang.code === "lad") {
@@ -240,155 +276,190 @@ export default {
         this.sourceLang = this.languages.find((l) => l.code === "lad");
       }
     },
-    getList() {
-      // this.axios.get(api).then((response) => {
-      //   console.log(response.data)
-      // })
-      // or
-      this.axios.get(`${this.apiBase}/translate`).then((response) => {
-        this.models = JSON.parse(JSON.stringify(response.data.models));
-        for (var i in response.data.languages) {
-          this.languages.push({ code: i, name: response.data.languages[i] });
-        }
-        // this.languages = response.data.languages;
-        this.sourceLang = this.languages.find((l) => l.code !== "lad");
-        this.targetLang = this.languages.find((l) => l.code === "lad");
-        // this.targetLang =
-      });
-    },
+    
     async translate() {
-      // const post = null;
-      this.translating = true;
-      const data = (
-        await this.axios.post(`${this.apiBase}/translate`, this.postData)
-      ).data;
-      this.target = "";
-      if (data && data.translation) {
-        data.translation.forEach((t) => {
-          this.target += t + "\n";
+      if (!this.source.trim()) {
+        toast({
+          message: "Please enter some text to translate",
+          type: "is-warning",
+          duration: 3000,
+          position: "top-center",
         });
+        return;
       }
-      this.translating = false;
-    },
-    async random() {
-      const data = (
-        await this.axios.get(
-          `${this.apiBase}/translate/random/${this.sourceLang.code}`
-        )
-      ).data;
-      if (data.sentence) {
-        this.source = data.sentence;
-      }
-    },
-    async submit() {
-      const postData = {
-        src: this.sourceLang.code,
-        tgt: this.targetLang.code,
-        src_text: this.source,
-        tgt_text: this.target,
-        token: this.token,
-      };
-      // const data = (
-      await this.axios.post(`${this.apiBase}/translate/contribute`, postData);
-      // ).data;
-      // console.log(data.message);
 
+      // Check character limit
+      if (this.source.length > this.maxCharacters) {
+        toast({
+          message: `Text is too long. Maximum ${this.maxCharacters} characters allowed. Current: ${this.source.length}`,
+          type: "is-warning",
+          duration: 4000,
+          position: "top-center",
+        });
+        return;
+      }
+
+      this.translating = true;
+      this.target = "";
+      
+      try {
+        const response = await this.axios.post(this.apiEndpoint, this.postData, {
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        
+        if (response.data && response.data.translation) {
+          this.target = response.data.translation;
+        } else {
+          throw new Error('Invalid response format');
+        }
+        
+      } catch (error) {
+        console.error('Translation error:', error);
+        let errorMessage = "Translation failed. Please try again.";
+        
+        if (error.response?.status === 404) {
+          errorMessage = "Translation service not found. Make sure the API is running.";
+        } else if (error.response?.status === 500) {
+          errorMessage = error.response?.data?.error || "Server error. Please check your Claude API key configuration.";
+        } else if (error.message === 'Network Error') {
+          errorMessage = "Network error. Please check your internet connection and API configuration.";
+        }
+        
+        toast({
+          message: errorMessage,
+          type: "is-danger",
+          duration: 5000,
+          position: "top-center",
+        });
+      } finally {
+        this.translating = false;
+      }
+    },
+    
+    random() {
+      const randomIndex = Math.floor(Math.random() * this.randomSentences.length);
+      this.source = this.randomSentences[randomIndex];
+    },
+    
+    voice(text, langCode) {
+      if (this.playing) return;
+      
+      // For Ladino - placeholder for future API implementation
+      if (langCode === 'lad') {
+        // TODO: Implement Ladino TTS API call here
+        return;
+      }
+      
+      // Browser TTS for other languages
+      this.playing = true;
+      try {
+        if ('speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance(text);
+          const langMap = {
+            'en': 'en-US',
+            'es': 'es-ES',
+            'tr': 'tr-TR'
+          };
+          utterance.lang = langMap[langCode] || 'en-US';
+          utterance.onend = () => {
+            this.playing = false;
+          };
+          utterance.onerror = () => {
+            this.playing = false;
+          };
+          speechSynthesis.speak(utterance);
+        } else {
+          this.playing = false;
+        }
+      } catch (error) {
+        this.playing = false;
+        console.error('TTS error:', error);
+      }
+    },
+    
+    submitContribution() {
       toast({
         message: this.$t("Thank you for your contribution"),
         type: "is-primary",
-        duration: 3000,
+        duration: 5000,
         position: "top-center",
         closeOnClick: true,
-        opacity: 0.7,
+        opacity: 0.7
       });
       this.contribute = false;
     },
-    async voice(text) {
-      if (this.playing || !text) {
-        return;
-      }
-      this.playing = true;
-      const postData = {
-        voice: "karen",
-        text: text,
-        token: this.token,
-      };
-      const { data } = await this.axios.post(`${this.apiBase}/tts`, postData, {
-        responseType: "arraybuffer",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      const blob = new Blob([data], {
-        type: "audio/wav",
-      });
-      var blobUrl = URL.createObjectURL(blob);
-      var audio = new Audio(blobUrl);
-      audio.play();
-      this.playing = false;
-
-      // var audio = new Audio(blob);
-      // audio.play();
-      // console.log(data);
-      // curl -L -X GET 'http://api.collectivat.cat/tts' -H 'Content-Type: application/json' --data-raw '{"voice": "karen", "text":"hello 123 este maraviyoza diya", "token":"XoSn5gFLGXwJtTGb1sQ9VoQi4X_EHIhR5b_YghczGV0"}'
+    
+    cancelContribute() {
+      this.contribute = false;
     },
-
+    
     prepareModal() {
-      document.addEventListener("DOMContentLoaded", () => {
-        // Functions to open and close a modal
-        function openModal($el) {
-          $el.classList.add("is-active");
-        }
-
-        function closeModal($el) {
-          $el.classList.remove("is-active");
-        }
-
-        function closeAllModals() {
-          (document.querySelectorAll(".modal") || []).forEach(($modal) => {
-            closeModal($modal);
-          });
-        }
-
-        // Add a click event on buttons to open a specific modal
-        (document.querySelectorAll(".js-modal-trigger") || []).forEach(
-          ($trigger) => {
-            const modal = $trigger.dataset.target;
-            const $target = document.getElementById(modal);
-            console.log($target);
-
-            $trigger.addEventListener("click", () => {
-              openModal($target);
-            });
-          }
-        );
-
-        // Add a click event on various child elements to close the parent modal
-        (
-          document.querySelectorAll(
-            ".modal-background, .modal-close, .modal-card-head .delete, .modal-card-foot .button"
-          ) || []
-        ).forEach(($close) => {
-          const $target = $close.closest(".modal");
-
-          $close.addEventListener("click", () => {
-            closeModal($target);
-          });
-        });
-
-        // Add a keyboard event to close all modals
-        document.addEventListener("keydown", (event) => {
-          const e = event || window.event;
-
-          if (e.keyCode === 27) {
-            // Escape key
-            closeAllModals();
-          }
-        });
-      });
-    },
+      // Modal initialization if needed
+    }
   },
 };
 </script>
+
 <style scoped>
+.translation-widget {
+  min-height: 500px;
+}
+
+.xbox {
+  position: relative;
+}
+
+.area {
+  position: relative;
+}
+
+.voice {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.voice.clickable:hover {
+  color: #3273dc !important;
+}
+
+.character-counter {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  font-size: 0.875rem;
+  color: #b5b5b5;
+}
+
+.character-counter.has-text-danger {
+  color: #ff3860;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.help-image {
+  max-width: 100%;
+  height: auto;
+}
+
+.tags {
+  margin-top: 0.5rem;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
 </style>
